@@ -1,0 +1,54 @@
+# Open Sauce — OpenSSF Scorecard
+# Runs the OpenSSF Scorecard against your repo and publishes results
+# to the GitHub Security tab as SARIF. Helps track your security posture
+# across branch protection, dependency pinning, SAST, token permissions, etc.
+#
+# Drop this file into your repo's .github/workflows/ directory.
+#
+# Prerequisites:
+#   - Enable "Dependency graph" in repo Settings > Code security
+#   - The SCORECARD_TOKEN secret is optional but recommended to avoid rate limits.
+#     Create a PAT with `public_repo` scope (or `repo` for private repos).
+
+name: OpenSSF Scorecard
+
+on:
+  push:
+    branches:
+      - main
+  schedule:
+    # Weekly Monday 9am UTC
+    - cron: "0 9 * * 1"
+  workflow_dispatch:
+
+permissions: {}
+
+jobs:
+  scorecard:
+    name: Scorecard analysis
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      security-events: write  # For SARIF upload
+      id-token: write         # For Scorecard OIDC
+    steps:
+      - name: Checkout
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          persist-credentials: false
+
+      - name: Run Scorecard
+        uses: ossf/scorecard-action@05b42c624433fc40578a4040d5cf5e36ddca94d2 # v2.4.1
+        with:
+          results_file: results.sarif
+          results_format: sarif
+          # Use a dedicated PAT for deeper checks, or fall back to the default token.
+          # Create SCORECARD_TOKEN as a PAT with public_repo scope (or repo for private).
+          repo_token: ${{ secrets.SCORECARD_TOKEN }}
+          publish_results: true
+
+      - name: Upload SARIF
+        uses: github/codeql-action/upload-sarif@ff0a06e83cb2de871e5a09832bc6a81e7276941f # v3.28.18
+        with:
+          sarif_file: results.sarif
+          category: scorecard
