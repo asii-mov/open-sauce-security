@@ -1,0 +1,38 @@
+# Open Sauce — Dependency Review
+# Checks pull requests for newly introduced dependencies with known vulnerabilities
+# or restrictive licenses. Blocks the PR if issues are found.
+#
+# Drop this file into your repo's .github/workflows/ directory.
+#
+# Prerequisites:
+#   - Enable "Dependency graph" in repo Settings > Code security
+
+name: Dependency Review
+
+on:
+  pull_request:
+
+permissions: {}
+
+jobs:
+  dependency-review:
+    name: Review dependency changes
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pull-requests: write  # For PR comments on failures
+    steps:
+      - name: Checkout
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          persist-credentials: false
+
+      - name: Dependency Review
+        uses: actions/dependency-review-action@da24556b548a50705dd671f47852072ea4c105d9 # v4.7.1
+        with:
+          # Fail on any vulnerability with a known fix
+          fail-on-severity: moderate
+          # Block copyleft licenses in dependencies (customize as needed)
+          deny-licenses: AGPL-3.0-only, GPL-3.0-only, GPL-2.0-only
+          # Comment on the PR with findings
+          comment-summary-in-pr: on-failure

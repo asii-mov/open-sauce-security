@@ -1,0 +1,66 @@
+# Copy this file to .github/dependabot.yml in your repository.
+# Customize the package ecosystems and directories for your project.
+#
+# Docs: https://docs.github.com/en/code-security/dependabot/dependabot-version-updates/configuration-options-for-the-dependabot.yml-file
+
+version: 2
+updates:
+  # GitHub Actions — keep workflows pinned to latest
+  - package-ecosystem: "github-actions"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+    # Group minor/patch updates into a single PR
+    groups:
+      actions-minor:
+        update-types:
+          - "minor"
+          - "patch"
+
+  # --- Uncomment the ecosystem(s) that apply to your project ---
+
+  # Python (pip)
+  # - package-ecosystem: "pip"
+  #   directory: "/"
+  #   schedule:
+  #     interval: "weekly"
+  #     day: "monday"
+  #   groups:
+  #     python-minor:
+  #       update-types:
+  #         - "minor"
+  #         - "patch"
+
+  # Node.js (npm)
+  # - package-ecosystem: "npm"
+  #   directory: "/"
+  #   schedule:
+  #     interval: "weekly"
+  #     day: "monday"
+  #   groups:
+  #     npm-minor:
+  #       update-types:
+  #         - "minor"
+  #         - "patch"
+
+  # Rust (cargo)
+  # - package-ecosystem: "cargo"
+  #   directory: "/"
+  #   schedule:
+  #     interval: "weekly"
+  #     day: "monday"
+
+  # Go modules
+  # - package-ecosystem: "gomod"
+  #   directory: "/"
+  #   schedule:
+  #     interval: "weekly"
+  #     day: "monday"
+
+  # Docker
+  # - package-ecosystem: "docker"
+  #   directory: "/"
+  #   schedule:
+  #     interval: "weekly"
+  #     day: "monday"
