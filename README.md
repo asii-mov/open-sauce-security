@@ -4,6 +4,11 @@ Drop-in security hardening for open source projects.
 
 A collection of GitHub Actions workflows, templates, and guides that help OSS maintainers protect their projects from supply chain attacks. Inspired by [Astral's open source security practices](https://astral.sh/blog/open-source-security-at-astral), [OpenSSF Scorecard](https://securityscorecards.dev/), and [SLSA](https://slsa.dev/).
 
+## Guides
+
+- **[Maintainer Guide](guides/maintainer-guide.md)** — what to do for things that can't be automated: 2FA, access control, secrets, releases, dependencies, incident response.
+- **[Org Enforcement Guide](guides/org-enforcement.md)** — for org admins: how to enforce this toolkit across **every repo** in your organization using org rulesets, required workflows, and continuous-enforcement tools like Allstar.
+
 ## Quick Start
 
 ### 1. Add the CI workflows
@@ -82,11 +87,12 @@ Check your repo's current security posture:
 | [`tag-rulesets.json`](templates/tag-rulesets.json) | Tag protection: prevent deletion and modification of release tags |
 | [`dependabot.yml`](templates/dependabot.yml) | Automated dependency updates with grouped PRs |
 
-### Manual (guide for maintainers)
+### Manual (guides)
 
-| Guide | What it covers |
-|-------|---------------|
-| [`maintainer-guide.md`](guides/maintainer-guide.md) | 2FA enforcement, access control, secrets management, dependency review, release approval, incident response |
+| Guide | Audience | What it covers |
+|-------|----------|---------------|
+| [`maintainer-guide.md`](guides/maintainer-guide.md) | Repo maintainers | 2FA enforcement, access control, secrets management, dependency review, release approval, incident response |
+| [`org-enforcement.md`](guides/org-enforcement.md) | Org admins | Applying this toolkit across **every** repo in an org: org rulesets, required workflows, Allstar, safe-settings, bulk setup scripts |
 
 ### Local audit
 
