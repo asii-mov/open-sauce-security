@@ -35,7 +35,7 @@ Copy and customize the release workflow for your build system:
 
 ```bash
 curl -o .github/workflows/release.yml \
-  https://raw.githubusercontent.com/asii-mov/open-sauce-security/main/.github/workflows/release-hardened.yml
+  https://raw.githubusercontent.com/asii-mov/open-sauce-security/main/workflows/release-hardened.yml
 ```
 
 Then in your repo's GitHub Settings:
