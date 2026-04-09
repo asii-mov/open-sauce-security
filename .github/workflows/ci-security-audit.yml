@@ -32,23 +32,12 @@ jobs:
         with:
           persist-credentials: false
 
-      - name: Install zizmor
-        # Pin to a specific version — update periodically
-        run: |
-          pip install 'zizmor>=1.6,<2'
-
       - name: Run zizmor
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: |
-          zizmor --format sarif . > results.sarif || true
-
-      - name: Upload SARIF
-        uses: github/codeql-action/upload-sarif@ff0a06e83cb2de871e5a09832bc6a81e7276941f # v3.28.18
-        if: always()
+        uses: zizmorcore/zizmor-action@71321a20a9ded102f6e9ce5718a2fcec2c4f70d8 # v0.5.2
         with:
-          sarif_file: results.sarif
-          category: zizmor
+          version: 1.23.1
+          # Upload SARIF to the Security tab and continue on findings
+          advanced-security: "true"
 
   pinact:
     name: Check action pinning (pinact)
