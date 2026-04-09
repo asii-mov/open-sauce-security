@@ -16,17 +16,17 @@ A collection of GitHub Actions workflows, templates, and guides that help OSS ma
 Copy the workflows you want into your repo's `.github/workflows/` directory:
 
 ```bash
-# Security audit (zizmor + pinact) — catches workflow vulnerabilities and unpinned actions
+# Security audit (zizmor + pinact)
 curl -o .github/workflows/ci-security-audit.yml \
-  https://raw.githubusercontent.com/YOUR_ORG/open-sauce/main/workflows/ci-security-audit.yml
+  https://raw.githubusercontent.com/asii-mov/open-sauce-security/main/.github/workflows/ci-security-audit.yml
 
-# OpenSSF Scorecard — tracks your overall security posture
+# OpenSSF Scorecard
 curl -o .github/workflows/scorecard.yml \
-  https://raw.githubusercontent.com/YOUR_ORG/open-sauce/main/workflows/scorecard.yml
+  https://raw.githubusercontent.com/asii-mov/open-sauce-security/main/.github/workflows/scorecard.yml
 
-# Dependency review — blocks PRs that introduce vulnerable dependencies
+# Dependency review
 curl -o .github/workflows/dependency-review.yml \
-  https://raw.githubusercontent.com/YOUR_ORG/open-sauce/main/workflows/dependency-review.yml
+  https://raw.githubusercontent.com/asii-mov/open-sauce-security/main/.github/workflows/dependency-review.yml
 ```
 
 ### 2. Set up release hardening
@@ -35,7 +35,7 @@ Copy and customize the release workflow for your build system:
 
 ```bash
 curl -o .github/workflows/release.yml \
-  https://raw.githubusercontent.com/YOUR_ORG/open-sauce/main/workflows/release-hardened.yml
+  https://raw.githubusercontent.com/asii-mov/open-sauce-security/main/.github/workflows/release-hardened.yml
 ```
 
 Then in your repo's GitHub Settings:
