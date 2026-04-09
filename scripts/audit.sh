@@ -26,19 +26,19 @@ warn=0
 
 check_pass() {
   echo -e "  ${GREEN}[PASS]${NC} $1"
-  ((pass++))
+  pass=$((pass + 1))
 }
 
 check_fail() {
   echo -e "  ${RED}[FAIL]${NC} $1"
   echo -e "        ${YELLOW}Fix:${NC} $2"
-  ((fail++))
+  fail=$((fail + 1))
 }
 
 check_warn() {
   echo -e "  ${YELLOW}[WARN]${NC} $1"
   echo -e "        ${YELLOW}Tip:${NC} $2"
-  ((warn++))
+  warn=$((warn + 1))
 }
 
 check_skip() {
@@ -104,15 +104,17 @@ else
   check_skip "pinact not installed — install from https://github.com/suzuki-shunsuke/pinact"
 fi
 
-# Check workflow permissions with zizmor
+# Check workflow security with zizmor (uses exit code, not line counting)
 if command -v zizmor &> /dev/null; then
-  findings=$(zizmor --format plain . 2>/dev/null || true)
-  if [[ -z "$findings" ]]; then
-    check_pass "zizmor found no workflow security issues"
+  if compgen -G ".github/workflows/*.y*ml" > /dev/null 2>&1; then
+    if zizmor --quiet .github/workflows/ &> /dev/null; then
+      check_pass "zizmor found no workflow security issues"
+    else
+      check_fail "zizmor found workflow security issues" \
+        "Run: zizmor .github/workflows/"
+    fi
   else
-    count=$(echo "$findings" | wc -l)
-    check_fail "zizmor found $count potential issues" \
-      "Run: zizmor ."
+    check_skip "zizmor: no workflow files to audit"
   fi
 else
   check_skip "zizmor not installed — install: pip install zizmor"
@@ -123,17 +125,12 @@ fi
 # =====================================================================
 section "2. Repository Settings"
 
-# Check branch protection on default branch
+# Check branch protection on default branch.
+# gh api writes an error JSON to stdout on 404, so we use the exit code via `if`.
 default_branch=$(gh api "repos/$REPO" --jq '.default_branch' 2>/dev/null || echo "main")
-protection=$(gh api "repos/$REPO/branches/$default_branch/protection" 2>/dev/null || echo "")
-
-if [[ -z "$protection" ]]; then
-  check_fail "No branch protection on '$default_branch'" \
-    "Enable branch protection or rulesets in repo Settings > Rules"
-else
+if protection=$(gh api "repos/$REPO/branches/$default_branch/protection" 2>/dev/null); then
   check_pass "Branch protection enabled on '$default_branch'"
 
-  # Check specific protections
   force_push=$(echo "$protection" | jq -r '.allow_force_pushes.enabled // "unknown"')
   if [[ "$force_push" == "false" ]]; then
     check_pass "Force pushes disabled on '$default_branch'"
@@ -149,11 +146,22 @@ else
     check_warn "Pull request reviews not required" \
       "Require at least 1 review before merging"
   fi
+else
+  # Classic branch protection missing — check for an active branch ruleset instead.
+  # The list endpoint returns summary data (no conditions), so we match on target + enforcement.
+  rulesets=$(gh api "repos/$REPO/rulesets" 2>/dev/null || echo "[]")
+  branch_rules=$(echo "$rulesets" | jq '[.[] | select(.target == "branch" and .enforcement == "active")] | length')
+  if [[ "$branch_rules" -gt 0 ]]; then
+    check_pass "Active branch ruleset found ($branch_rules)"
+  else
+    check_fail "No branch protection or ruleset on '$default_branch'" \
+      "Import templates/branch-rulesets.json or enable classic protection in repo Settings > Rules"
+  fi
 fi
 
-# Check tag protection
+# Check tag protection (same list-endpoint caveat — match on target + enforcement)
 rulesets=$(gh api "repos/$REPO/rulesets" 2>/dev/null || echo "[]")
-tag_rules=$(echo "$rulesets" | jq '[.[] | select(.conditions.ref_name.include[]? | test("refs/tags"))] | length')
+tag_rules=$(echo "$rulesets" | jq '[.[] | select(.target == "tag" and .enforcement == "active")] | length')
 
 if [[ "$tag_rules" -gt 0 ]]; then
   check_pass "Tag protection rulesets configured"
@@ -188,12 +196,12 @@ else
     "Add .github/dependabot.yml or renovate.json. See templates/dependabot.yml"
 fi
 
-# Check for vulnerability alerts
+# Check for vulnerability alerts. Endpoint returns 204 if enabled, 404 if disabled.
 if gh api "repos/$REPO/vulnerability-alerts" &>/dev/null; then
   check_pass "Vulnerability alerts enabled"
 else
-  check_warn "Could not verify vulnerability alerts (may require admin access)" \
-    "Enable Dependabot alerts in repo Settings > Code security"
+  check_fail "Vulnerability alerts disabled" \
+    "Enable Dependabot alerts: gh api repos/$REPO/vulnerability-alerts -X PUT"
 fi
 
 # =====================================================================
@@ -218,9 +226,12 @@ fi
 # =====================================================================
 section "6. Secrets Hygiene"
 
-# Check for common secret patterns in tracked files
+# Check for common secret patterns in tracked files.
+# Excludes this script itself, lockfiles, and vendored dependencies.
 secret_patterns='(PRIVATE.KEY|BEGIN RSA|BEGIN EC|BEGIN OPENSSH|password\s*=\s*["\x27][^"\x27]+|api_key\s*=\s*["\x27][^"\x27]+|secret_key\s*=\s*["\x27][^"\x27]+)'
-secrets_found=$(git grep -lEi "$secret_patterns" -- ':!*.lock' ':!*.sum' ':!vendor/' 2>/dev/null || true)
+self_name=$(basename "$0")
+secrets_found=$(git grep -lEi "$secret_patterns" -- \
+  ":!*.lock" ":!*.sum" ":!vendor/" ":!scripts/$self_name" 2>/dev/null || true)
 
 if [[ -n "$secrets_found" ]]; then
   check_warn "Potential hardcoded secrets detected" \
