@@ -6,7 +6,9 @@
 # security baseline in every applicable repo you work in.
 #
 # The block is delimited by <!-- open-sauce:start --> / <!-- open-sauce:end -->.
-# Re-running replaces the block in place; nothing outside the markers is touched.
+# It is always pinned to a single commit SHA (never `main`), so a later push to
+# Open Sauce can't change what your agent follows. Re-run to update: the block
+# is replaced in place, and nothing outside the markers is touched.
 #
 # Usage:
 #   ./install-agent-instructions.sh [targets...] [--ref <git-ref>] [--remove]
@@ -20,17 +22,19 @@
 #   --file <path>    any other instruction file
 #
 # Options:
-#   --ref <ref>      Pin the instructions (and the setup prompt they link to) to a
-#                    commit SHA or tag instead of `main`. Recommended.
+#   --ref <ref>      Branch, tag or commit SHA to install (default: main). It is
+#                    resolved to a commit SHA once, at install time, and the
+#                    instructions (and the setup prompt they link to) are pinned to it.
 #   --remove         Remove the Open Sauce block from the selected targets.
 #
 # Examples:
 #   ./scripts/install-agent-instructions.sh --global
 #   curl -fsSL https://raw.githubusercontent.com/asii-mov/open-sauce-security/main/scripts/install-agent-instructions.sh \
-#     | bash -s -- --global --ref <commit-sha>
+#     | bash -s -- --global
 
 set -euo pipefail
 
+REPO_URL="https://github.com/asii-mov/open-sauce-security"
 BASE_URL="https://raw.githubusercontent.com/asii-mov/open-sauce-security"
 SNIPPET_PATH="agents/open-sauce-instructions.md"
 START_MARKER="<!-- open-sauce:start -->"
@@ -71,27 +75,35 @@ tmp=$(mktemp -d)
 trap 'rm -rf "$tmp"' EXIT
 snippet="$tmp/snippet.md"
 
-# Prefer the local checkout when the script is run from a clone at the default ref;
-# otherwise download the snippet at the requested ref.
-script_dir=""
-if [[ -n "${BASH_SOURCE[0]:-}" && -f "${BASH_SOURCE[0]}" ]]; then
-  script_dir=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
-fi
-if [[ "$REF" == "main" && -n "$script_dir" && -f "$script_dir/../$SNIPPET_PATH" ]]; then
-  cp "$script_dir/../$SNIPPET_PATH" "$snippet"
-elif ! $REMOVE; then
-  curl -fsSL "$BASE_URL/$REF/$SNIPPET_PATH" -o "$snippet"
-fi
-
+# Resolve the ref to an immutable commit SHA and download the snippet at that
+# commit, so the installed text matches exactly what its pinned URLs serve.
+SHA=""
 if ! $REMOVE; then
+  if [[ "$REF" =~ ^[0-9a-f]{40}$ ]]; then
+    SHA="$REF"
+  else
+    if ! command -v git &> /dev/null; then
+      echo "Error: git is required to resolve --ref '$REF' to a commit SHA" >&2
+      exit 1
+    fi
+    refs=$(git ls-remote "$REPO_URL" "refs/heads/$REF" "refs/tags/$REF" "refs/tags/$REF^{}")
+    # Prefer a peeled annotated tag, then a branch, then a lightweight tag.
+    SHA=$(awk -v r="$REF" '$2 == "refs/tags/" r "^{}" { print $1 }' <<< "$refs")
+    [[ -z "$SHA" ]] && SHA=$(awk -v r="$REF" '$2 == "refs/heads/" r { print $1 }' <<< "$refs")
+    [[ -z "$SHA" ]] && SHA=$(awk -v r="$REF" '$2 == "refs/tags/" r { print $1 }' <<< "$refs")
+  fi
+  if [[ ! "$SHA" =~ ^[0-9a-f]{40}$ ]]; then
+    echo "Error: could not resolve --ref '$REF' to a commit SHA in $REPO_URL" >&2
+    exit 1
+  fi
+
+  curl -fsSL "$BASE_URL/$SHA/$SNIPPET_PATH" -o "$snippet"
   if ! grep -qF "$START_MARKER" "$snippet" || ! grep -qF "$END_MARKER" "$snippet"; then
     echo "Error: downloaded snippet is missing its markers; refusing to install" >&2
     exit 1
   fi
-  # Point the setup-prompt link at the pinned ref.
-  if [[ "$REF" != "main" ]]; then
-    sed -i.bak "s#open-sauce-security/main/#open-sauce-security/$REF/#g" "$snippet" && rm -f "$snippet.bak"
-  fi
+  # Point every Open Sauce URL in the block at the pinned commit.
+  sed -i.bak "s#open-sauce-security/main/#open-sauce-security/$SHA/#g" "$snippet" && rm -f "$snippet.bak"
 fi
 
 # Remove any existing block from $1 (in place), plus the blank lines it leaves
@@ -133,7 +145,11 @@ ordered=()
 for f in "${targets[@]}"; do [[ "$(basename "$f")" != "CLAUDE.md" ]] && ordered+=("$f"); done
 for f in "${targets[@]}"; do [[ "$(basename "$f")" == "CLAUDE.md" ]] && ordered+=("$f"); done
 
-echo "Open Sauce agent instructions (ref: $REF)"
+if $REMOVE; then
+  echo "Open Sauce agent instructions: removing"
+else
+  echo "Open Sauce agent instructions: pinned to $SHA (from $REF)"
+fi
 for file in "${ordered[@]}"; do
   if $REMOVE; then
     if [[ -f "$file" ]] && grep -qF "$START_MARKER" "$file"; then
@@ -162,3 +178,7 @@ for file in "${ordered[@]}"; do
   touch "$file"
   install_block "$file"
 done
+
+if ! $REMOVE; then
+  echo "Re-run this script to update to a newer Open Sauce version."
+fi

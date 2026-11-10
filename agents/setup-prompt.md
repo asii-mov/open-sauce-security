@@ -2,7 +2,8 @@ Set up Open Sauce security hardening (https://github.com/asii-mov/open-sauce-sec
 
 ## Source
 
-- Download every Open Sauce file from `https://raw.githubusercontent.com/asii-mov/open-sauce-security/main/<path>` using `curl -fsSL`. (To pin a version, I can replace `main` with a commit SHA before pasting.)
+- Pin one commit for this whole run. If this prompt came from a URL that contains a commit SHA, use that SHA. Otherwise resolve `main` once with `git ls-remote https://github.com/asii-mov/open-sauce-security refs/heads/main`. Call the result `SHA` and mention it in the final report.
+- Download every Open Sauce file from `https://raw.githubusercontent.com/asii-mov/open-sauce-security/SHA/<path>` using `curl -fsSL`. Never use `main` in a download URL, so all files come from the same commit.
 - If the network is blocked, ask me to allow it. Never write these files from memory: they contain SHA-pinned action references that must be exact.
 
 ## Ground rules
@@ -81,15 +82,15 @@ If a call fails because I lack permission, record it as a manual step and contin
 
 ## Step 9: Standing instructions (as chosen in 1e)
 
-1. Download `agents/open-sauce-instructions.md`. It begins with `<!-- open-sauce:start -->` and ends with `<!-- open-sauce:end -->`. If you're using a pinned version, change `/main/` in its URLs to the same commit SHA.
-2. For each target file I chose: create the file (and its directory) if missing. If it already contains an `open-sauce:start`/`open-sauce:end` block, replace that block; otherwise append the block, preceded by a blank line. Never modify anything outside the markers.
-3. For this repo's `CLAUDE.md`: if the repo has an `AGENTS.md` with the block, add a line `@AGENTS.md` to `CLAUDE.md` instead of duplicating the block.
-4. Repo-level files are part of the commit in Step 8. Global files live outside the repo, so tell me exactly which files you changed.
+1. Download `scripts/install-agent-instructions.sh` at `SHA` to a temp directory (not the repo), read it, then run it from the repo root with `--ref SHA` and one flag for each target I chose: `--codex`, `--claude`, `--repo-agents`, `--repo-claude`. It pins the block to that commit, updates an existing block in place, never touches anything outside the `<!-- open-sauce:start -->`/`<!-- open-sauce:end -->` markers, and makes a repo `CLAUDE.md` import `AGENTS.md` rather than duplicating the block.
+2. Don't hand-edit the instruction files. If the script can't run, tell me and stop this step.
+3. Repo-level files are part of the commit in Step 8. Global files live outside the repo, so tell me exactly which files changed and which commit they're pinned to.
 
 ## Step 10: Report
 
 Finish with a concise summary:
 - **Added or changed:** each file, with one line on what it does.
 - **GitHub settings applied:** or "none".
+- **Open Sauce version:** the pinned `SHA`.
 - **Audit result:** pass/fail/warn counts and any remaining failures.
 - **Needs a human:** what's left from https://github.com/asii-mov/open-sauce-security/blob/main/guides/maintainer-guide.md that applies to this repo, for example 2FA, more release reviewers, trusted publishing setup on the registry, scoping secrets to environments, and enabling the dependency graph if it's off.

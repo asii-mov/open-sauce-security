@@ -36,7 +36,7 @@ curl -fsSL https://raw.githubusercontent.com/asii-mov/open-sauce-security/main/s
 ```
 
 ```bash
-bash install-agent-instructions.sh --global --ref <commit-sha>
+bash install-agent-instructions.sh --global
 ```
 
 | Flag | Writes to | Applies to |
@@ -49,7 +49,7 @@ bash install-agent-instructions.sh --global --ref <commit-sha>
 
 The block sits between `<!-- open-sauce:start -->` and `<!-- open-sauce:end -->` markers. Re-running updates it in place, `--remove` takes it out, and nothing else in the file is touched. To opt a single repo out, add `open-sauce: skip` to its `AGENTS.md` or `CLAUDE.md`.
 
-> **Pin it.** `--ref <commit-sha>` pins both the instructions and the setup prompt they link to. Your agent then follows a version you've reviewed, not whatever is on `main` later.
+> **Always pinned.** The installer never writes `main` into your instruction files. It resolves the current `main` commit (or the `--ref <sha|tag|branch>` you pass, if you want a version you've reviewed), pins both the instructions and the setup prompt they link to at that commit, and prints the SHA. A later push to this repo can't change what your agent follows. To pick up updates, including refreshed action pins, re-run the installer.
 
 ## Quick Start (manual)
 
