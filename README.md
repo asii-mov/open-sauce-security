@@ -53,31 +53,29 @@ The block sits between `<!-- open-sauce:start -->` and `<!-- open-sauce:end -->`
 
 ## Quick Start (manual)
 
-### 1. Add the CI workflows
-
-Copy the workflows you want into your repo's `.github/workflows/` directory:
+Run these from the root of your repo. They download from `main`; swap `main` for a commit SHA in `BASE` to pin a version you've reviewed.
 
 ```bash
-# Security audit (zizmor + pinact)
-curl -o .github/workflows/ci-security-audit.yml \
-  https://raw.githubusercontent.com/asii-mov/open-sauce-security/main/.github/workflows/ci-security-audit.yml
-
-# OpenSSF Scorecard
-curl -o .github/workflows/scorecard.yml \
-  https://raw.githubusercontent.com/asii-mov/open-sauce-security/main/.github/workflows/scorecard.yml
-
-# Dependency review
-curl -o .github/workflows/dependency-review.yml \
-  https://raw.githubusercontent.com/asii-mov/open-sauce-security/main/.github/workflows/dependency-review.yml
+BASE=https://raw.githubusercontent.com/asii-mov/open-sauce-security/main
 ```
+
+### 1. Add the CI workflows
+
+```bash
+mkdir -p .github/workflows
+curl -fsSL "$BASE/workflows/ci-security-audit.yml" -o .github/workflows/ci-security-audit.yml   # zizmor + pinact
+curl -fsSL "$BASE/workflows/scorecard.yml" -o .github/workflows/scorecard.yml                   # OpenSSF Scorecard (public repos)
+curl -fsSL "$BASE/workflows/dependency-review.yml" -o .github/workflows/dependency-review.yml   # dependency review
+```
+
+The pinact check fails until every action in your existing workflows is pinned to a commit SHA. Run `pinact run` to pin them. Scorecard runs on pushes to `main`, so change `push.branches` in `scorecard.yml` if your default branch has a different name.
 
 ### 2. Set up release hardening
 
-Copy and customize the release workflow for your build system:
+Copy the release workflow, then customize its build and publish steps for your project:
 
 ```bash
-curl -o .github/workflows/release.yml \
-  https://raw.githubusercontent.com/asii-mov/open-sauce-security/main/workflows/release-hardened.yml
+curl -fsSL "$BASE/workflows/release-hardened.yml" -o .github/workflows/release.yml
 ```
 
 Then in your repo's GitHub Settings:
@@ -88,25 +86,31 @@ Then in your repo's GitHub Settings:
 ### 3. Add templates
 
 ```bash
-# Security policy
-cp templates/SECURITY.md SECURITY.md  # Edit contact info
+# Security policy: edit the contact details after downloading
+curl -fsSL "$BASE/templates/SECURITY.md" -o SECURITY.md
 
-# Dependabot config
-cp templates/dependabot.yml .github/dependabot.yml  # Uncomment your ecosystems
+# Dependabot: uncomment the ecosystems you use
+curl -fsSL "$BASE/templates/dependabot.yml" -o .github/dependabot.yml
 
-# Branch protection (import via GitHub CLI)
-gh api repos/OWNER/REPO/rulesets --method POST --input templates/branch-rulesets.json
-
-# Tag protection
-gh api repos/OWNER/REPO/rulesets --method POST --input templates/tag-rulesets.json
+# Branch and tag protection rulesets (needs gh with admin access)
+curl -fsSL "$BASE/templates/branch-rulesets.json" -o /tmp/branch-rulesets.json
+curl -fsSL "$BASE/templates/tag-rulesets.json" -o /tmp/tag-rulesets.json
+gh api repos/OWNER/REPO/rulesets --method POST --input /tmp/branch-rulesets.json
+gh api repos/OWNER/REPO/rulesets --method POST --input /tmp/tag-rulesets.json
 ```
+
+> **Solo maintainer?** The branch ruleset requires one approving review from someone other than the last pusher, so you couldn't merge your own PRs. Before importing it, set `required_approving_review_count` to `0` and `require_last_push_approval` to `false`. PRs are still required and force pushes are still blocked.
 
 ### 4. Run the audit
 
-Check your repo's current security posture:
+Check your repo's current security posture (needs `gh`, `git` and `jq`; pinact and zizmor are optional):
 
 ```bash
-./scripts/audit.sh
+curl -fsSL "$BASE/scripts/audit.sh" -o /tmp/open-sauce-audit.sh
+```
+
+```bash
+bash /tmp/open-sauce-audit.sh
 ```
 
 ## What's Inside
@@ -125,9 +129,9 @@ Check your repo's current security posture:
 | Template | What it does |
 |----------|-------------|
 | [`SECURITY.md`](templates/SECURITY.md) | Security vulnerability reporting policy |
-| [`branch-rulesets.json`](templates/branch-rulesets.json) | Branch protection: no force-push, require reviews, require status checks |
+| [`branch-rulesets.json`](templates/branch-rulesets.json) | Branch protection for `main`/`master`: no deletion, no force-push, PRs with an approving review, resolved threads |
 | [`tag-rulesets.json`](templates/tag-rulesets.json) | Tag protection: prevent deletion and modification of release tags |
-| [`dependabot.yml`](templates/dependabot.yml) | Automated dependency updates with grouped PRs |
+| [`dependabot.yml`](templates/dependabot.yml) | Automated dependency updates with grouped PRs and release cooldowns |
 
 ### Manual (guides)
 
@@ -153,6 +157,12 @@ Check your repo's current security posture:
 ## Why This Exists
 
 Open source supply chain attacks are increasing in frequency and sophistication:
+
+- **tj-actions/changed-files (2025):** an attacker rewrote the action's version tags to point at malicious code that dumped CI secrets into build logs. That affected every repo referencing a tag instead of a commit SHA.
+- **Ultralytics (2024):** a `pull_request_target` workflow ran attacker-controlled branch names in a shell. Together with cache poisoning, that led to malicious releases on PyPI.
+- **xz-utils (2024):** a long-running social-engineering campaign gave an attacker maintainer access, which they used to ship a backdoor in release tarballs.
+- **Codecov (2021):** attackers modified the Bash uploader script that CI pipelines downloaded without checksum verification. For about two months it sent the credentials in customers' CI environments to the attackers.
+- **event-stream (2018):** a new maintainer of a popular npm package added a malicious dependency that targeted cryptocurrency wallets.
 
 Most of these attacks exploited gaps in practices that are straightforward to fix: unpinned dependencies, overly-permissive CI, missing release controls, weak account security.
 
